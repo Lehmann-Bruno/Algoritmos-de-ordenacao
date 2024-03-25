@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ViaCEP Webservice</title>
+</head>
+<body>
+    <h1>Consulta de CEP</h1>
+
+    <form>
+        <label for="cep">CEP:</label>
+        <input type="text" id="cep" size="10" maxlength="9" placeholder="Digite o CEP" />
+        <button type="button" onclick="pesquisarCEP()">Buscar</button>
+    </form>
+
+    <div id="endereco">
+        <h2>Endereço Encontrado:</h2>
+        <p><strong>Rua:</strong> <span id="rua"></span></p>
+        <p><strong>Bairro:</strong> <span id="bairro"></span></p>
+        <p><strong>Cidade:</strong> <span id="cidade"></span></p>
+        <p><strong>Estado:</strong> <span id="estado"></span></p>
+        <p><strong>IBGE:</strong> <span id="ibge"></span></p>
+    </div>
+
+    <button onclick="salvarCEP()">Salvar CEP</button>
+
+    <h1>CEPs Salvos</h1>
+    <button onclick="toggleCEPsSalvos()">Mostrar/Esconder CEPs Salvos</button>
+    <div id="cepsSalvos" style="display: none;">
+        <!-- CEPs salvos serão exibidos aqui -->
+    </div>
+
+    <script>
+        function limparFormulario() {
+            document.getElementById('rua').textContent = '';
+            document.getElementById('bairro').textContent = '';
+            document.getElementById('cidade').textContent = '';
+            document.getElementById('estado').textContent = '';
+            document.getElementById('ibge').textContent = '';
+        }
+
+        function pesquisarCEP() {
+            var cep = document.getElementById('cep').value.replace(/\D/g, '');
+
+            if (cep.length !== 8) {
+                alert('CEP inválido. Por favor, insira um CEP válido.');
+                return;
+            }
+
+            fetch('https://viacep.com.br/ws/' + cep + '/json/')
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.erro) {
+                        document.getElementById('rua').textContent = data.logradouro;
+                        document.getElementById('bairro').textContent = data.bairro;
+                        document.getElementById('cidade').textContent = data.localidade;
+                        document.getElementById('estado').textContent = data.uf;
+                        document.getElementById('ibge').textContent = data.ibge;
+                    } else {
+                        alert('CEP não encontrado. Por favor, verifique o CEP digitado.');
+                        limparFormulario();
+                    }
+                })
+                .catch(error => {
+                    console.error('Ocorreu um erro ao buscar o CEP:', error);
+                    alert('Ocorreu um erro ao buscar o CEP. Por favor, tente novamente mais tarde.');
+                    limparFormulario();
+                });
+        }
+
+        function salvarCEP() {
+            var endereco = {
+                rua: document.getElementById('rua').textContent,
+                bairro: document.getElementById('bairro').textContent,
+                cidade: document.getElementById('cidade').textContent,
+                estado: document.getElementById('estado').textContent,
+                ibge: document.getElementById('ibge').textContent
+            };
+
+            if (!endereco.rua || !endereco.bairro || !endereco.cidade || !endereco.estado || !endereco.ibge) {
+                alert('Por favor, primeiro busque um CEP válido antes de salvar.');
+                return;
+            }
+
+            var cepsSalvos = JSON.parse(localStorage.getItem('cepsSalvos')) || [];
+            var isDuplicado = cepsSalvos.some(cep => JSON.stringify(cep) === JSON.stringify(endereco));
+
+            if (!isDuplicado) {
+                cepsSalvos.push(endereco);
+                localStorage.setItem('cepsSalvos', JSON.stringify(cepsSalvos));
+                exibirCEPsSalvos();
+                alert('CEP salvo com sucesso!');
+            } else {
+                alert('Este CEP já está salvo.');
+            }
+        }
+
+        function exibirCEPsSalvos() {
+            var cepsSalvos = JSON.parse(localStorage.getItem('cepsSalvos')) || [];
+            var cepsSalvosContainer = document.getElementById('cepsSalvos');
+            cepsSalvosContainer.innerHTML = '';
+
+            if (cepsSalvos.length > 0) {
+                cepsSalvos.forEach((cep, index) => {
+                    var cepElement = document.createElement('div');
+                    cepElement.innerHTML = `
+                        <p><strong>CEP ${index + 1}:</strong></p>
+                        <p><strong>Rua:</strong> ${cep.rua}</p>
+                        <p><strong>Bairro:</strong> ${cep.bairro}</p>
+                        <p><strong>Cidade:</strong> ${cep.cidade}</p>
+                        <p><strong>Estado:</strong> ${cep.estado}</p>
+                        <p><strong>IBGE:</strong> ${cep.ibge}</p>
+                        <button onclick="removerCEP(${index})">Remover</button>
+                    `;
+                    cepsSalvosContainer.appendChild(cepElement);
+                });
+            } else {
+                cepsSalvosContainer.innerHTML = '<p>Nenhum CEP salvo.</p>';
+            }
+        }
+
+        function removerCEP(index) {
+            var cepsSalvos = JSON.parse(localStorage.getItem('cepsSalvos')) || [];
+            cepsSalvos.splice(index, 1);
+            localStorage.setItem('cepsSalvos', JSON.stringify(cepsSalvos));
+            exibirCEPsSalvos();
+            alert('CEP removido com sucesso!');
+        }
+
+        function toggleCEPsSalvos() {
+            var cepsSalvosContainer = document.getElementById('cepsSalvos');
+            cepsSalvosContainer.style.display = cepsSalvosContainer.style.display === 'none' ? 'block' : 'none';
+        }
+
+        window.onload = function() {
+            exibirCEPsSalvos();
+        };
+    </script>
+</body>
+</html>
